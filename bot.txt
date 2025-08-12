@@ -7,10 +7,9 @@ import time
 from threading import Thread
 
 # === НАСТРОЙКИ ===
-TOKEN = "8336667744:AAHa2mNi7QCEC2_sQl2v84nJki3r9ylwtgE"
-CHAT_ID = "367637575"  # Получим на шаге 4
-WORDS_FILE = "words.json"
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1Px-GWVwMqrYUMXAUsT6iEqnPwdboSW4Z_0w3_UNwvi0/export?format=csv"
+TOKEN = os.getenv("TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+SHEET_URL = os.getenv("SHEET_URL")
 
 bot = telebot.TeleBot(TOKEN)
 
