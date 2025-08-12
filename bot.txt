@@ -1,0 +1,52 @@
+import requests
+import csv
+import random
+import telebot
+import schedule
+import time
+from threading import Thread
+
+# === НАСТРОЙКИ ===
+TOKEN = "8336667744:AAHa2mNi7QCEC2_sQl2v84nJki3r9ylwtgE"
+CHAT_ID = "367637575"  # Получим на шаге 4
+WORDS_FILE = "words.json"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1Px-GWVwMqrYUMXAUsT6iEqnPwdboSW4Z_0w3_UNwvi0/export?format=csv"
+
+bot = telebot.TeleBot(TOKEN)
+
+# Загружаем слова из Google Sheets
+def load_words():
+    try:
+        r = requests.get(SHEET_URL)
+        r.encoding = "utf-8"
+        words = [row[0] for row in csv.reader(r.text.splitlines()) if row]
+        return words
+    except Exception as e:
+        print("Ошибка загрузки слов:", e)
+        return []
+
+# Отправка 10 случайных слов
+def send_words():
+    words = load_words()
+    if not words:
+        bot.send_message(CHAT_ID, "⚠️ Не удалось загрузить слова из таблицы.")
+        return
+    selected = random.sample(words, min(10, len(words)))
+    message = "📚 Слова для повторения:\n" + "\n".join(selected)
+    bot.send_message(CHAT_ID, message)
+
+# Запускаем расписание (3 раза в день)
+schedule.every().day.at("11:10").do(send_words)
+schedule.every().day.at("15:00").do(send_words)
+schedule.every().day.at("20:00").do(send_words)
+
+# Фоновый поток для расписания
+def schedule_loop():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+Thread(target=schedule_loop).start()
+
+# Чтобы бот не падал
+bot.polling(none_stop=True)
