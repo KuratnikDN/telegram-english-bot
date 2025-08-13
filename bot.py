@@ -7,6 +7,8 @@ import schedule
 import time
 from threading import Thread
 
+print("Бот стартует...")
+
 # === НАСТРОЙКИ ===
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
@@ -27,12 +29,15 @@ def load_words():
 
 # Отправка 10 случайных слов
 def send_words():
+    print("Попытка отправить слова...")
     words = load_words()
     if not words:
+        print("Не удалось загрузить слова")
         bot.send_message(CHAT_ID, "⚠️ Не удалось загрузить слова из таблицы.")
         return
     selected = random.sample(words, min(10, len(words)))
     message = "📚 Слова для повторения:\n" + "\n".join(selected)
+    print("Отправляю сообщение...")
     bot.send_message(CHAT_ID, message)
 
 # Запускаем расписание (3 раза в день)
