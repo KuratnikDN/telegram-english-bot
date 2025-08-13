@@ -70,12 +70,12 @@ def fill_missing_translations(pairs):
 # Выравнивание в два столбика (с учётом кириллицы)
 def format_two_columns(pairs):
     if not pairs:
-        return "<pre>Нет данных</pre>"
+        return "Нет данных"
 
     max_len = max(len(en) for en, _ in pairs)
     lines = [f"{en.ljust(max_len)} — {ru}" for en, ru in pairs]
     body = "\n".join(lines)
-    return f"<pre>{body}</pre>"
+    return body
 
 # Отправка 10 случайных слов
 @bot.message_handler(commands=['send_words'])
@@ -90,7 +90,7 @@ def send_words(message=None):
 
         selected = random.sample(pairs, min(10, len(pairs)))
         msg = format_two_columns(selected)
-        bot.send_message(CHAT_ID, msg, parse_mode="HTML")
+        bot.send_message(CHAT_ID, msg)
         print("Отправлено слов:", len(selected))
     except Exception as e:
         print("Ошибка при send_words():", e)
