@@ -76,7 +76,7 @@ def format_two_columns(pairs):
     max_len = max(len(en) for en, _ in pairs)
     lines = [f"{en.ljust(max_len)} —    {ru}" for en, ru in pairs]
     body = "\n".join(lines)
-    return body
+    return f"📚 Слова для повторения:\n{body}"
 
 
 # Отправка 10 случайных слов
