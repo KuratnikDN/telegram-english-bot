@@ -54,4 +54,4 @@ def schedule_loop():
 Thread(target=schedule_loop).start()
 
 # Чтобы бот не падал
-bot.polling(none_stop=True)
+bot.infinity_polling()
