@@ -71,24 +71,28 @@ def fill_missing_translations(pairs):
         if not isinstance(results, list):
             results = [results]
         for (idx, _), res in zip(need, results):
-            pairs[idx] = (pairs[idx][0], res.text)
+            translation = res.text if res and res.text else "—"
+            pairs[idx] = (pairs[idx][0], translation)
     except Exception as e:
         print("Автоперевод не сработал:", e)
     return pairs
 
-# выравнивание в два столбика.
+# выравнивание в два столбика (с учётом кириллицы)
 def format_two_columns(pairs):
     if not pairs:
         return "<pre>Нет данных</pre>"
 
+    # max_len считаем по английским словам
     max_len = max(len(en) for en, _ in pairs)
-    lines = [f"{en.ljust(max_len)} — {ru}" for en, ru in pairs]
+    lines = []
+    for en, ru in pairs:
+        lines.append(f"{en.ljust(max_len)} — {ru}")
     body = "\n".join(lines)
     return f"<pre>{body}</pre>"
 
 # Отправка 10 случайных слов
 @bot.message_handler(commands=['send_words'])
-def send_words():
+def send_words(message=None):
     try:
         pairs = load_pairs()
         if not pairs:
