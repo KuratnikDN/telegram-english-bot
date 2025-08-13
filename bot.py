@@ -41,10 +41,15 @@ def send_words():
     bot.send_message(CHAT_ID, message)
 
 # Запускаем расписание (3 раза в день)
-# schedule.every().day.at("03:49").do(send_words)
-# schedule.every().day.at("15:00").do(send_words)
-# schedule.every().day.at("20:00").do(send_words)
-schedule.every(2).minutes.do(send_words)
+schedule.every().day.at("08:00").do(send_words)
+schedule.every().day.at("11:00").do(send_words)
+schedule.every().day.at("14:00").do(send_words)
+schedule.every().day.at("17:00").do(send_words)
+schedule.every().day.at("20:00").do(send_words)
+schedule.every().day.at("21:00").do(send_words)
+schedule.every().day.at("22:00").do(send_words)
+schedule.every().day.at("23:00").do(send_words)
+schedule.every().day.at("01:07").do(send_words)
 
 # Фоновый поток для расписания
 def schedule_loop():
