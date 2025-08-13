@@ -20,7 +20,7 @@ SHEET_URL = os.getenv("SHEET_URL")
 bot = telebot.TeleBot(TOKEN)
 translator = Translator()
 
-print("Бот запущен... UTC:", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+print("Бот запущен... UTC:", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
 
 def _looks_like_header(row):
     if not row:
