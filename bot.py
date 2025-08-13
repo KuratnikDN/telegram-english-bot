@@ -90,7 +90,7 @@ def send_words(message=None):
         pairs = fill_missing_translations(pairs)
         selected = random.sample(pairs, min(10, len(pairs)))
         msg = format_two_columns(selected)
-        bot.send_message(CHAT_ID, msg)
+        bot.send_message(CHAT_ID, msg, parse_mode="HTML")
         print("Отправлено слов:", len(selected))
     except Exception as e:
         print("Ошибка при send_words():", e)
