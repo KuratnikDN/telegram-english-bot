@@ -41,7 +41,7 @@ def send_words():
     bot.send_message(CHAT_ID, message)
 
 # Запускаем расписание (3 раза в день)
-schedule.every().day.at("03:41").do(send_words)
+schedule.every().day.at("03:49").do(send_words)
 schedule.every().day.at("15:00").do(send_words)
 schedule.every().day.at("20:00").do(send_words)
 
