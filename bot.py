@@ -6,7 +6,7 @@ import telebot
 import schedule
 import time
 from threading import Thread
-from datetime import datetime
+from datetime import datetime, timezone
 from googletrans import Translator
 
 
