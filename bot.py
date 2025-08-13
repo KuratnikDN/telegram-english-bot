@@ -53,5 +53,6 @@ def schedule_loop():
 
 Thread(target=schedule_loop).start()
 
+send_words()
 # Чтобы бот не падал
 bot.infinity_polling()
