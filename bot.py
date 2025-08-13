@@ -71,11 +71,11 @@ def fill_missing_translations(pairs):
 def format_two_columns(pairs):
     if not pairs:
         return "Нет данных"
-
     max_len = max(len(en) for en, _ in pairs)
     lines = [f"{en.ljust(max_len)} — {ru}" for en, ru in pairs]
     body = "\n".join(lines)
-    return body
+    return f"```\n{body}\n```"
+
 
 # Отправка 10 случайных слов
 @bot.message_handler(commands=['send_words'])
@@ -90,7 +90,7 @@ def send_words(message=None):
 
         selected = random.sample(pairs, min(10, len(pairs)))
         msg = format_two_columns(selected)
-        bot.send_message(CHAT_ID, msg)
+        bot.send_message(CHAT_ID, msg, parse_mode="MarkdownV2")
         print("Отправлено слов:", len(selected))
     except Exception as e:
         print("Ошибка при send_words():", e)
@@ -99,8 +99,8 @@ def send_words(message=None):
         except Exception:
             pass
 
-# Расписание (3 раза в день)
-for t in ["08:00","11:00","14:00","17:00","20:00","21:00","22:00","23:00","01:07"]:
+# Расписание 
+for t in ["08:00","11:00","14:00","17:00","20:00","21:00","22:00","23:00"]:
     schedule.every().day.at(t).do(send_words)
 
 # Фоновый поток для расписания
