@@ -1,164 +1,138 @@
 import os
-import requests
-import csv
 import random
 import telebot
 import schedule
 import time
+import gspread
+import json
+from google.oauth2.service_account import Credentials
 from threading import Thread
 from datetime import datetime, timezone
 from googletrans import Translator
 
-print("Бот стартует...")
-
 # === НАСТРОЙКИ ===
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-SHEET_URL = os.getenv("SHEET_URL")
+SHEET_ID = os.getenv("SHEET_ID")  # ID таблицы
+SHEET_NAME = os.getenv("SHEET_NAME", "Слова и глаголы")
 
 bot = telebot.TeleBot(TOKEN)
 translator = Translator()
 
+# Авторизация в Google Sheets API
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+creds_json = os.getenv("GOOGLE_CREDS")
+creds_dict = json.loads(creds_json)
+creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+gc = gspread.authorize(creds)
+sheet = gc.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+
 print("Бот запущен... UTC:", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
 
-def _looks_like_header(row):
-    if not row:
-        return False
-    head = " ".join(cell.strip().lower() for cell in row[:2])
-    tokens = ["english", "word", "англ", "слово", "перевод", "russian", "рус"]
-    return any(t in head for t in tokens)
+# ----------------- Загрузка и сохранение -----------------
+def load_all_data():
+    """Читаем всю таблицу"""
+    return sheet.get_all_values()
 
-# Загружаем слова из Google Sheets
-def load_pairs():
-    try:
-        r = requests.get(SHEET_URL, timeout=15)
-        r.encoding = "utf-8"
-        rows = list(csv.reader(r.text.splitlines()))
-        if not rows:
-            return []
+def parse_words_and_verbs(rows):
+    """Разделяем данные на слова и глаголы"""
+    words = []
+    verbs = []
+    for row in rows[1:]:
+        # Слова
+        en_word = row[0].strip() if len(row) >= 1 else ""
+        ru_word = row[1].strip() if len(row) >= 2 else ""
+        if en_word:
+            words.append((en_word, ru_word))
 
-        if _looks_like_header(rows[0]):
-            rows = rows[1:]
+        # Глаголы
+        en_verb = row[2].strip() if len(row) >= 3 else ""
+        past = row[3].strip() if len(row) >= 4 else ""
+        ru_verb = row[4].strip() if len(row) >= 5 else ""
+        if en_verb:
+            verbs.append((en_verb, past, ru_verb))
+    return words, verbs
 
-        pairs = []
-        for row in rows:
-            if not row:
-                continue
-            en = row[0].strip() if len(row) >= 1 else ""
-            if not en:
-                continue
-            ru = row[1].strip() if len(row) >= 2 else ""
-            pairs.append((en, ru))
-        return pairs
-    except Exception as e:
-        print("Ошибка загрузки таблицы:", e)
-        return []
+def save_translations(words, verbs):
+    """Сохраняет изменения обратно в Google Sheets"""
+    rows = load_all_data()
+    # Сохраняем слова
+    for i, (en, ru) in enumerate(words, start=2):
+        if not rows[i-1][1] and ru:
+            sheet.update_cell(i, 2, ru)
+    # Сохраняем глаголы
+    for i, (en, past, ru) in enumerate(verbs, start=2):
+        if len(rows[i-1]) < 5:
+            while len(rows[i-1]) < 5:
+                rows[i-1].append("")
+        if not rows[i-1][4] and ru:
+            sheet.update_cell(i, 5, ru)
 
-# Загружаем неправильные глаголы из Google Sheets
-def load_verbs():
-    try:
-        r = requests.get(SHEET_URL, timeout=15)
-        r.encoding = "utf-8"
-        rows = list(csv.reader(r.text.splitlines()))
-        if not rows:
-            return []
+# ----------------- Автоперевод -----------------
+def fill_missing_translations(words, verbs):
+    changed = False
+    # Слова
+    for i, (en, ru) in enumerate(words):
+        if not ru:
+            try:
+                res = translator.translate(en, src="en", dest="ru")
+                words[i] = (en, res.text)
+                changed = True
+            except Exception as e:
+                print(f"Ошибка перевода слова {en}:", e)
+                words[i] = (en, "—")
+    # Глаголы
+    for i, (en, past, ru) in enumerate(verbs):
+        if not ru:
+            try:
+                res = translator.translate(en, src="en", dest="ru")
+                verbs[i] = (en, past, res.text)
+                changed = True
+            except Exception as e:
+                print(f"Ошибка перевода глагола {en}:", e)
+                verbs[i] = (en, past, "—")
+    # Сохраняем изменения сразу в таблицу
+    if changed:
+        save_translations(words, verbs)
+    return words, verbs
 
-        # Пропускаем заголовок
-        if _looks_like_header(rows[0]):
-            rows = rows[1:]
-
-        verbs = []
-        for row in rows:
-            if len(row) < 5:
-                continue
-            en = row[2].strip()     # глагол
-            past = row[3].strip()   # прошедшая форма
-            ru = row[4].strip()     # перевод
-            if en:
-                verbs.append((en, past, ru))
-        return verbs
-    except Exception as e:
-        print("Ошибка загрузки глаголов:", e)
-        return []
-
+# ----------------- Форматирование -----------------
+def format_words(words):
+    if not words:
+        return "Нет данных"
+    max_len = max(len(en) for en, _ in words)
+    lines = [f"{en.ljust(max_len)} — {ru}" for en, ru in words]
+    return f"📚 <b>Слова для повторения:</b>\n\n" + "\n".join(lines)
 
 def format_verbs(verbs):
     if not verbs:
         return "Нет данных"
-
-    # Находим максимальную длину глагола для выравнивания
     max_len = max(len(v[0]) for v in verbs)
     lines = [f"{v[0].ljust(max_len)} — {v[1]} — {v[2]}" for v in verbs]
-    body = "\n".join(lines)
-    return f"👓📝<b>Неправильные глаголы:</b>📝\n\n{body}"
-    
-# Автозаполнение пустых переводов
-def fill_missing_translations(pairs):
-    for i, (en, ru) in enumerate(pairs):
-        if not ru:
-            try:
-                res = translator.translate(en, src="en", dest="ru")
-                translation = res.text if res and res.text else "—"
-                pairs[i] = (en, translation)
-            except Exception as e:
-                print(f"Автоперевод слова '{en}' не сработал:", e)
-                pairs[i] = (en, "—")
-    return pairs
+    return f"👓 <b>Неправильные глаголы:</b>\n\n" + "\n".join(lines)
 
-# Выравнивание в два столбика (с учётом кириллицы)
-def format_two_columns(pairs):
-    if not pairs:
-        return "Нет данных"
+# ----------------- Отправка -----------------
+def send_words():
+    rows = load_all_data()
+    words, verbs = parse_words_and_verbs(rows)
+    words, _ = fill_missing_translations(words, verbs)
+    selected = random.sample(words, min(10, len(words)))
+    bot.send_message(CHAT_ID, format_words(selected), parse_mode="HTML")
 
-    # Находим длину самой длинной английской колонки для выравнивания
-    max_len = max(len(en) for en, _ in pairs)
-    lines = [f"{en.ljust(max_len)} —    {ru}" for en, ru in pairs]
-    body = "\n".join(lines)
-    return f"📚 <b>Слова для повторения:</b>\n\n{body}"
-
-
-# Отправка 10 случайных слов
-@bot.message_handler(commands=['send_words'])
-def send_words(message=None):
-    try:
-        pairs = load_pairs()
-        if not pairs:
-            bot.send_message(CHAT_ID, "⚠️ Не удалось загрузить слова из таблицы.")
-            return
-        pairs = fill_missing_translations(pairs)
-        selected = random.sample(pairs, min(10, len(pairs)))
-        msg = format_two_columns(selected)
-        bot.send_message(CHAT_ID, msg, parse_mode="HTML")
-        print("Отправлено слов:", len(selected))
-    except Exception as e:
-        print("Ошибка при send_words():", e)
-        try:
-            bot.send_message(CHAT_ID, f"⚠️ Ошибка при отправке слов: {e}")
-        except Exception:
-            pass
-
-# Отправка 10 случайных неправильных глаголов
 def send_verbs():
-    try:
-        verbs = load_verbs()
-        if not verbs:
-            bot.send_message(CHAT_ID, "⚠️ Не удалось загрузить глаголы из таблицы.")
-            return
-        selected = random.sample(verbs, min(10, len(verbs)))
-        msg = format_verbs(selected)
-        bot.send_message(CHAT_ID, msg, parse_mode="HTML")
-        print("Отправлено глаголов:", len(selected))
-    except Exception as e:
-        print("Ошибка при send_verbs():", e)
-        
-# Расписание 
-for t in ["08:00","14:00","17:00","21:00"]:
+    rows = load_all_data()
+    words, verbs = parse_words_and_verbs(rows)
+    _, verbs = fill_missing_translations(words, verbs)
+    selected = random.sample(verbs, min(10, len(verbs)))
+    bot.send_message(CHAT_ID, format_verbs(selected), parse_mode="HTML")
+
+# ----------------- Расписание -----------------
+for t in ["08:00", "14:00", "17:00", "21:00"]:
     schedule.every().day.at(t).do(send_words)
 
-for t in ["10:00", "18:30"]:  # другое расписание
+for t in ["10:00", "18:30"]:
     schedule.every().day.at(t).do(send_verbs)
 
-# Фоновый поток для расписания
 def schedule_loop():
     while True:
         schedule.run_pending()
