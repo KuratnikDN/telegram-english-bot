@@ -10,6 +10,8 @@ from threading import Thread
 from datetime import datetime, timezone
 from googletrans import Translator
 
+print("DEBUG: GOOGLE_CREDS =", os.getenv("GOOGLE_CREDS"))
+
 # === НАСТРОЙКИ ===
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
