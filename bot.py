@@ -117,6 +117,7 @@ def format_verbs(verbs):
     return f"👓 <b>Неправильные глаголы:</b>\n\n" + "\n".join(lines)
 
 # ----------------- Отправка -----------------
+@bot.message_handler(commands=['send_words'])
 def send_words():
     rows = load_all_data()
     words, verbs = parse_words_and_verbs(rows)
@@ -124,6 +125,7 @@ def send_words():
     selected = random.sample(words, min(10, len(words)))
     bot.send_message(CHAT_ID, format_words(selected), parse_mode="HTML")
 
+@bot.message_handler(commands=['send_verbs'])
 def send_verbs():
     rows = load_all_data()
     words, verbs = parse_words_and_verbs(rows)
