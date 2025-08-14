@@ -24,6 +24,9 @@ translator = Translator()
 # Авторизация в Google Sheets API
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 creds_json = os.getenv("GOOGLE_CREDS")
+print("DEBUG: GOOGLE_CREDS =", creds_json is not None)
+if not creds_json:
+    raise RuntimeError("Переменная окружения GOOGLE_CREDS не найдена!")
 creds_dict = json.loads(creds_json)
 creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 gc = gspread.authorize(creds)
